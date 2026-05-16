@@ -1,0 +1,9 @@
+{
+"name":"配車OCR Pro",
+"short_name":"配車OCR",
+"start_url":"./",
+"display":"standalone",
+"background_color":"#0f172a",
+"theme_color":"#0f172a",
+"icons":[]
+}
