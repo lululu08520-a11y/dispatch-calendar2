@@ -1,0 +1,9 @@
+{
+  "name": "配車カレンダー",
+  "short_name": "配車",
+  "start_url": "./index_patched.html",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "icons": []
+}

@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="配車カレンダー">
+<title>配車カレンダー</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d1117">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--panel:#161b22;--card:#1c2330;--border:#30363d;
+  --accent:#f0b429;--text:#e6edf3;--text-sub:#8b949e;
+  --green:#3fb950;--red:#f85149;--blue:#58a6ff;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;-webkit-tap-highlight-color:transparent}
+input,button,select,textarea{font-family:'Noto Sans JP',sans-serif;-webkit-appearance:none}
+
+/* ===== SCREENS ===== */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);transition:opacity 0.3s,transform 0.3s}
+.screen.hidden{opacity:0;pointer-events:none;transform:translateY(20px)}
+
+/* ===== HEADER ===== */
+.header{
+  background:var(--panel);
+  border-bottom:2px solid var(--accent);
+  padding:env(safe-area-inset-top,0) 16px 0;
+  height:calc(52px + env(safe-area-inset-top,0));
+  display:flex;align-items:flex-end;padding-bottom:10px;
+  gap:10px;flex-shrink:0;
+  position:relative;
+}
+.header-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;color:var(--accent)}
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.icon-btn{background:none;border:none;color:var(--text-sub);font-size:20px;padding:4px;cursor:pointer;line-height:1}
+
+/* ===== SETUP SCREEN ===== */
+.setup-screen{justify-content:center;align-items:center;padding:32px 24px;gap:24px}
+.setup-logo{font-size:56px;animation:bounce 2s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.setup-title{font-family:'Oswald',sans-serif;font-size:26px;font-weight:700;color:var(--accent);letter-spacing:3px;text-align:center}
+.setup-sub{font-size:13px;color:var(--text-sub);text-align:center;line-height:1.7}
+.setup-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%}
+.setup-label{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--text-sub);text-transform:uppercase;margin-bottom:8px;display:block}
+.setup-input{
+  width:100%;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;padding:12px;color:var(--text);font-size:14px;
+  outline:none;
+}
+.setup-input:focus{border-color:var(--accent)}
+.setup-hint{font-size:11px;color:var(--text-sub);margin-top:6px;line-height:1.6}
+.setup-hint a{color:var(--blue)}
+.btn-setup{
+  width:100%;padding:14px;background:var(--accent);color:#000;
+  border:none;border-radius:10px;font-family:'Oswald',sans-serif;
+  font-size:16px;font-weight:700;letter-spacing:2px;cursor:pointer;
+  transition:all 0.2s;
+}
+.btn-setup:active{transform:scale(0.98)}
+
+/* ===== MAIN SCREEN ===== */
+.main-screen{padding-top:0}
+.tab-bar{
+  display:flex;background:var(--panel);border-top:1px solid var(--border);
+  padding-bottom:env(safe-area-inset-bottom,0);flex-shrink:0;
+}
+.tab-btn{
+  flex:1;padding:10px 0 8px;background:none;border:none;
+  color:var(--text-sub);font-size:10px;font-weight:700;
+  letter-spacing:1px;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;gap:3px;transition:color 0.2s;
+}
+.tab-btn .tab-icon{font-size:22px;line-height:1}
+.tab-btn.active{color:var(--accent)}
+.tab-content{flex:1;overflow:hidden;position:relative}
+.tab-pane{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.tab-pane.hidden{display:none}
+
+/* ===== SCAN TAB ===== */
+.scan-pane{padding:16px;display:flex;flex-direction:column;gap:14px}
+
+.drop-zone{
+  background:var(--panel);border:2px dashed var(--border);
+  border-radius:12px;padding:0;overflow:hidden;
+  cursor:pointer;transition:border-color 0.2s;
+  min-height:200px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  position:relative;
+}
+.drop-zone.has-image{border-style:solid;border-color:var(--border)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.drop-placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;padding:32px}
+.drop-icon{font-size:48px}
+.drop-text{font-size:14px;color:var(--text-sub);text-align:center}
+.drop-text strong{color:var(--accent)}
+.preview-img{width:100%;max-height:260px;object-fit:contain;display:block}
+
+.btn-analyze{
+  width:100%;padding:14px;background:var(--accent);color:#000;
+  border:none;border-radius:10px;font-family:'Oswald',sans-serif;
+  font-size:16px;font-weight:700;letter-spacing:2px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:all 0.2s;
+}
+.btn-analyze:disabled{background:#2a2a2a;color:var(--text-sub);cursor:not-allowed}
+.btn-analyze:not(:disabled):active{transform:scale(0.98)}
+
+.spinner{width:18px;height:18px;border:2px solid rgba(0,0,0,0.3);border-top-color:#000;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Result card */
+.result-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.result-section{border-bottom:1px solid var(--border)}
+.result-section:last-child{border-bottom:none}
+.result-section-header{
+  padding:8px 14px;font-size:11px;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;display:flex;align-items:center;gap:6px;
+}
+.result-section-header.load{background:rgba(63,185,80,0.12);color:var(--green)}
+.result-section-header.unload{background:rgba(248,81,73,0.12);color:var(--red)}
+.result-section-header.meta{background:rgba(88,166,255,0.1);color:var(--blue)}
+.result-field{padding:8px 14px;border-top:1px solid var(--border)}
+.result-field:first-of-type{border-top:none}
+.field-lbl{font-size:10px;color:var(--text-sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+
+/* 日付・時刻入力グループ */
+.datetime-group{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.field-inp{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:6px;padding:8px 10px;color:var(--text);
+  font-size:14px;outline:none;
+}
+.field-inp:focus{border-color:var(--accent)}
+.field-inp.date-inp{flex:1;min-width:130px}
+.field-inp.time-inp{width:90px}
+.field-inp.ampm-sel{width:70px;cursor:pointer}
+.field-inp-full{
+  width:100%;background:var(--card);border:1px solid var(--border);
+  border-radius:6px;padding:8px 10px;color:var(--text);
+  font-size:14px;outline:none;
+}
+.field-inp-full:focus{border-color:var(--accent)}
+
+.btn-register{
+  width:100%;padding:14px;background:var(--green);color:#000;
+  border:none;border-radius:10px;font-family:'Oswald',sans-serif;
+  font-size:16px;font-weight:700;letter-spacing:2px;cursor:pointer;
+  transition:all 0.2s;
+}
+.btn-register:active{transform:scale(0.98)}
+#resultArea{flex-direction:column;gap:12px}
+.btn-cancel{
+  width:100%;padding:10px;background:transparent;
+  border:1px solid var(--border);border-radius:10px;
+  color:var(--text-sub);font-size:14px;cursor:pointer;
+}
+
+/* ===== CALENDAR TAB ===== */
+.cal-pane{padding:12px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px}
+.cal-month-label{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;letter-spacing:2px}
+.cal-arrow{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:8px;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+.cal-stats{display:flex;gap:8px;margin-bottom:12px}
+.stat-chip{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11px;display:flex;align-items:center;gap:5px}
+.stat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px}
+.wday{text-align:center;font-size:11px;font-weight:700;color:var(--text-sub);padding:4px 0;letter-spacing:1px}
+.wday.sun{color:var(--red)}.wday.sat{color:var(--blue)}
+
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.day-cell{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;min-height:56px;padding:5px 4px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:border-color 0.15s;
+}
+.day-cell:active{border-color:var(--accent)}
+.day-cell.other{opacity:0.25}
+.day-cell.today{border-color:var(--accent)}
+.day-cell.today .dnum{color:var(--accent);font-weight:700}
+.day-cell.sunday .dnum{color:var(--red)}
+.day-cell.saturday .dnum{color:var(--blue)}
+.dnum{font-family:'Oswald',sans-serif;font-size:13px;margin-bottom:4px;text-align:center}
+.day-dots{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;padding:0 2px}
+.day-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.day-dot.load{background:var(--green)}
+.day-dot.unload{background:var(--red)}
+
+/* ===== MODAL ===== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;
+  display:flex;align-items:flex-end;justify-content:center;
+  backdrop-filter:blur(4px);padding-bottom:env(safe-area-inset-bottom,0);
+}
+.modal-overlay.hidden{display:none}
+.modal{
+  background:var(--panel);border-radius:16px 16px 0 0;
+  width:100%;max-height:80vh;overflow-y:auto;
+  animation:slide-up 0.25s ease;
+}
+@keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.modal-header{padding:16px 20px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.modal-title{font-family:'Oswald',sans-serif;font-size:17px;font-weight:600;letter-spacing:1px}
+.modal-body{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.detail-row{display:flex;gap:12px;align-items:flex-start}
+.detail-icon{font-size:18px;margin-top:1px;flex-shrink:0}
+.detail-lbl{font-size:10px;color:var(--text-sub);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+.detail-val{font-size:14px;color:var(--text)}
+.modal-footer{padding:12px 20px 20px;display:flex;gap:8px}
+.btn-del{flex:1;padding:11px;background:rgba(248,81,73,0.12);color:var(--red);border:1px solid var(--red);border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
+.btn-close{flex:1;padding:11px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer}
+
+/* ===== SETTINGS TAB ===== */
+.settings-pane{padding:20px;display:flex;flex-direction:column;gap:16px}
+.settings-section{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.settings-row{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.settings-row:last-child{border-bottom:none}
+.settings-lbl{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text-sub);text-transform:uppercase}
+.settings-inp{background:transparent;border:none;color:var(--text);font-size:14px;width:100%;outline:none}
+.settings-inp:focus{border-bottom:1px solid var(--accent)}
+.btn-save{width:100%;padding:12px;background:var(--accent);color:#000;border:none;border-radius:10px;font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;cursor:pointer}
+.btn-danger-full{width:100%;padding:12px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:10px;font-size:14px;cursor:pointer}
+.settings-note{font-size:12px;color:var(--text-sub);line-height:1.7;padding:4px 0}
+
+/* ===== TOAST ===== */
+.toast{
+  position:fixed;bottom:calc(70px + env(safe-area-inset-bottom,0));left:12px;right:12px;
+  padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;
+  z-index:600;border:1px solid;word-break:break-all;
+  animation:toast-in 0.3s ease;
+}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.toast.success{background:rgba(63,185,80,0.15);border-color:var(--green);color:var(--green)}
+.toast.error{background:rgba(248,81,73,0.15);border-color:var(--red);color:var(--red)}
+.toast.hidden{display:none}
+
+/* ===== PWA HOME HINT ===== */
+.pwa-hint{
+  background:rgba(88,166,255,0.1);border:1px solid rgba(88,166,255,0.3);
+  border-radius:10px;padding:10px 14px;font-size:12px;color:var(--blue);
+  line-height:1.7;display:flex;gap:10px;align-items:flex-start;
+}
+.pwa-hint-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div class="screen setup-screen" id="setupScreen">
+  <div class="setup-logo">🚚</div>
+  <div>
+    <div class="setup-title">配車カレンダー</div>
+    <div class="setup-sub" style="margin-top:6px">配車指示書を写真で読み取り<br>自動でカレンダーに登録</div>
+  </div>
+  <div class="setup-card">
+    <label class="setup-label">Gemini APIキー</label>
+    <input class="setup-input" type="password" id="setupKeyInput" placeholder="AIza...">
+    <div class="setup-hint">
+      <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a> で無料取得できます。<br>
+      キーはこの端末内にのみ保存されます。
+    </div>
+  </div>
+  <button class="btn-setup" onclick="saveApiKey()">はじめる →</button>
+</div>
+
+<!-- MAIN SCREEN -->
+<div class="screen main-screen hidden" id="mainScreen">
+  <div class="header">
+    <span style="font-size:22px">🚚</span>
+    <span class="header-title">配車カレンダー</span>
+  </div>
+
+  <div class="tab-content">
+    <!-- SCAN -->
+    <div class="tab-pane scan-pane" id="tabScan">
+      <div class="pwa-hint" id="pwaHint">
+        <div class="pwa-hint-icon">📲</div>
+        <div>ホーム画面に追加するとアプリとして使えます。<br>Safari → 共有ボタン → 「ホーム画面に追加」</div>
+      </div>
+
+      <!-- hidden file inputs -->
+      <input type="file" id="fileInputGallery" accept="image/*,.heic,.heif" style="display:none" onchange="handleFile(this)">
+      <input type="file" id="fileInputCamera" accept="image/*,.heic,.heif" capture="environment" style="display:none" onchange="handleFile(this)">
+
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-placeholder" id="dropPlaceholder">
+          <div class="drop-icon">📄</div>
+          <div class="drop-text">写真を選んで読み取ります</div>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button onclick="document.getElementById('fileInputGallery').click()" style="padding:10px 18px;background:var(--accent);color:#000;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">📂 ライブラリ</button>
+            <button onclick="document.getElementById('fileInputCamera').click()" style="padding:10px 18px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">📷 カメラ</button>
+          </div>
+        </div>
+        <img id="previewImg" class="preview-img" style="display:none" onclick="document.getElementById('fileInputGallery').click()">
+      </div>
+
+      <button class="btn-analyze" id="analyzeBtn" onclick="analyzeImage()" disabled>
+        🔍 AIで情報を読み取る
+      </button>
+
+      <div id="resultArea" style="display:none">
+        <div class="result-card">
+
+          <!-- 積み込み -->
+          <div class="result-section">
+            <div class="result-section-header load">🟢 積み込み</div>
+            <div class="result-field">
+              <div class="field-lbl">日付</div>
+              <div class="datetime-group">
+                <input class="field-inp date-inp" type="date" id="f_load_date" placeholder="YYYY-MM-DD">
+                <input class="field-inp time-inp" type="time" id="f_load_time" placeholder="--:--">
+                <select class="field-inp ampm-sel" id="f_load_ampm">
+                  <option value="">時刻指定</option>
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
+              <div style="font-size:11px;color:var(--text-sub);margin-top:4px">※ 時刻不明の場合はAM/PMを選択</div>
+            </div>
+            <div class="result-field">
+              <div class="field-lbl">場所</div>
+              <input class="field-inp-full" id="f_load_loc" placeholder="積み込み先の名称・住所">
+            </div>
+          </div>
+
+          <!-- 荷下ろし -->
+          <div class="result-section">
+            <div class="result-section-header unload">🔴 荷下ろし</div>
+            <div class="result-field">
+              <div class="field-lbl">日付</div>
+              <div class="datetime-group">
+                <input class="field-inp date-inp" type="date" id="f_unload_date" placeholder="YYYY-MM-DD">
+                <input class="field-inp time-inp" type="time" id="f_unload_time" placeholder="--:--">
+                <select class="field-inp ampm-sel" id="f_unload_ampm">
+                  <option value="">時刻指定</option>
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
+              <div style="font-size:11px;color:var(--text-sub);margin-top:4px">※ 時刻不明の場合はAM/PMを選択</div>
+            </div>
+            <div class="result-field">
+              <div class="field-lbl">場所</div>
+              <input class="field-inp-full" id="f_unload_loc" placeholder="荷下ろし先の名称・住所">
+            </div>
+          </div>
+
+        </div>
+        <button class="btn-register" onclick="registerEvents()">📅 カレンダーに登録する</button>
+        <button class="btn-cancel" onclick="clearResult()">キャンセル</button>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="tab-pane hidden cal-pane" id="tabCal">
+      <div class="cal-nav">
+        <button class="cal-arrow" onclick="changeMonth(-1)">‹</button>
+        <div class="cal-month-label" id="calMonthLabel"></div>
+        <button class="cal-arrow" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="cal-stats" id="calStats"></div>
+      <div class="weekdays">
+        <div class="wday sun">日</div><div class="wday">月</div><div class="wday">火</div>
+        <div class="wday">水</div><div class="wday">木</div><div class="wday">金</div>
+        <div class="wday sat">土</div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="tab-pane hidden settings-pane" id="tabSettings">
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-lbl">Gemini APIキー</div>
+          <input class="settings-inp" type="password" id="settingsKeyInput" placeholder="AIza...">
+        </div>
+      </div>
+      <div class="settings-note">キーはこの端末のブラウザ内にのみ保存され、外部に送信されません。画像の解析時のみGemini APIに送信されます。</div>
+      <button class="btn-save" onclick="saveSettings()">保存する</button>
+      <div class="settings-section" style="margin-top:8px">
+        <div class="settings-row">
+          <div class="settings-lbl">データ管理</div>
+          <div class="settings-note">登録済みイベント: <span id="eventCount">0</span>件</div>
+        </div>
+      </div>
+      <button class="btn-danger-full" onclick="clearAllData()">全データを削除する</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabBtnScan" onclick="switchTab('Scan')">
+      <span class="tab-icon">📸</span>読み取り
+    </button>
+    <button class="tab-btn" id="tabBtnCal" onclick="switchTab('Cal')">
+      <span class="tab-icon">📅</span>カレンダー
+    </button>
+    <button class="tab-btn" id="tabBtnSettings" onclick="switchTab('Settings')">
+      <span class="tab-icon">⚙️</span>設定
+    </button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modalOverlay" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="icon-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter">
+      <button class="btn-del" onclick="deleteCurrentEvent()">削除</button>
+      <button class="btn-close" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast hidden" id="toast"></div>
+
+<script>
+// ===== STATE =====
+let events = [];
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let currentImageBase64 = null;
+let currentImageType = null;
+let currentEventId = null;
+let toastTimer = null;
+
+
+function escapeHtml(str='') {
+  return str
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+// 画像圧縮
+function compressImage(file, maxWidth = 1600, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+
+
+// ===== OCR ENHANCED =====
+
+async function runOCR(dataUrl) {
+  try {
+    showToast('OCR解析中...', 'info');
+
+    const result = await Tesseract.recognize(
+      dataUrl,
+      'jpn'
+    );
+
+    return result.data.text || '';
+  } catch(err) {
+    console.error(err);
+    return '';
+  }
+}
+
+function extractByRegex(text='') {
+  const result = {
+    load: {},
+    unload: {}
+  };
+
+  const dateMatches = [...text.matchAll(/(\d{4})年(\d{1,2})月(\d{1,2})日/g)];
+
+  if (dateMatches[0]) {
+    result.load.date =
+      `${dateMatches[0][1]}-${String(dateMatches[0][2]).padStart(2,'0')}-${String(dateMatches[0][3]).padStart(2,'0')}`;
+  }
+
+  if (dateMatches[1]) {
+    result.unload.date =
+      `${dateMatches[1][1]}-${String(dateMatches[1][2]).padStart(2,'0')}-${String(dateMatches[1][3]).padStart(2,'0')}`;
+  }
+
+  const timeMatches = [...text.matchAll(/(\d{1,2})時(\d{2})分/g)];
+
+  if (timeMatches[0]) {
+    result.load.time =
+      `${String(timeMatches[0][1]).padStart(2,'0')}:${timeMatches[0][2]}`;
+  }
+
+  if (timeMatches[1]) {
+    result.unload.time =
+      `${String(timeMatches[1][1]).padStart(2,'0')}:${timeMatches[1][2]}`;
+  }
+
+  const lines = text.split('\n');
+
+  const addressLines = lines.filter(l =>
+    l.includes('県') ||
+    l.includes('都') ||
+    l.includes('府')
+  );
+
+  if (addressLines[0]) {
+    result.load.location = addressLines[0].trim();
+  }
+
+  if (addressLines[1]) {
+    result.unload.location = addressLines[1].trim();
+  }
+
+  return result;
+}
+
+// ===== INIT =====
+function init() {
+  loadData();
+  const key = localStorage.getItem('gemini_key');
+  if (key) {
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('mainScreen').classList.remove('hidden');
+    document.getElementById('settingsKeyInput').value = key;
+    renderCalendar();
+    updateEventCount();
+    if (window.navigator.standalone) {
+      document.getElementById('pwaHint').style.display = 'none';
+    }
+  }
+  // AM/PM選択時に時刻inputを無効化
+  document.getElementById('f_load_ampm').addEventListener('change', function() {
+    const timeInp = document.getElementById('f_load_time');
+    if (this.value) { timeInp.value = ''; timeInp.disabled = true; }
+    else { timeInp.disabled = false; }
+  });
+  document.getElementById('f_unload_ampm').addEventListener('change', function() {
+    const timeInp = document.getElementById('f_unload_time');
+    if (this.value) { timeInp.value = ''; timeInp.disabled = true; }
+    else { timeInp.disabled = false; }
+  });
+  // 時刻入力時はAM/PMをリセット
+  document.getElementById('f_load_time').addEventListener('input', function() {
+    if (this.value) document.getElementById('f_load_ampm').value = '';
+  });
+  document.getElementById('f_unload_time').addEventListener('input', function() {
+    if (this.value) document.getElementById('f_unload_ampm').value = '';
+  });
+}
+
+function loadData() {
+  try { events = JSON.parse(localStorage.getItem('dispatch_events') || '[]'); } catch { events = []; }
+}
+
+function saveData() {
+  try {
+    localStorage.setItem('dispatch_events', JSON.stringify(events));
+    updateEventCount();
+  } catch(e) {
+    showToast('保存容量を超えました', 'error');
+  }
+}
+
+// ===== API KEY =====
+function saveApiKey() {
+  const key = document.getElementById('setupKeyInput').value.trim();
+  if (!key.startsWith('AIza')) { showToast('APIキーが正しくありません（AIza...で始まるもの）', 'error'); return; }
+  localStorage.setItem('gemini_key', key);
+  document.getElementById('setupScreen').classList.add('hidden');
+  document.getElementById('mainScreen').classList.remove('hidden');
+  document.getElementById('settingsKeyInput').value = key;
+  renderCalendar();
+  updateEventCount();
+}
+
+function saveSettings() {
+  const key = document.getElementById('settingsKeyInput').value.trim();
+  if (!key) { showToast('APIキーを入力してください', 'error'); return; }
+  localStorage.setItem('gemini_key', key);
+  showToast('✅ 保存しました');
+}
+
+function clearAllData() {
+  if (!confirm('全てのイベントを削除しますか？')) return;
+  events = [];
+  saveData();
+  renderCalendar();
+  showToast('削除しました');
+}
+
+// ===== FILE HANDLING =====
+async function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  try {
+    const dataUrl = await compressImage(file);
+
+    currentImageBase64 = dataUrl.split(',')[1];
+    currentImageType = 'image/jpeg';
+
+    const img = document.getElementById('previewImg');
+    img.src = dataUrl;
+    img.style.display = 'block';
+
+    document.getElementById('dropPlaceholder').style.display = 'none';
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('resultArea').style.display = 'none';
+  } catch(e) {
+    showToast('画像読み込み失敗', 'error');
+  }
+}
+
+// ===== ANALYZE =====
+async function analyzeImage() {
+  if (!currentImageBase64) return;
+  const key = localStorage.getItem('gemini_key');
+  if (!key) { showToast('APIキーが設定されていません', 'error'); return; }
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> 読み取り中...';
+
+  // 強化されたプロンプト：多様な書類フォーマットに対応
+  const prompt = `この画像は日本の物流・運送業で使われる書類です（配車依頼書・手配書・輸送依頼書・輸送指示書・チャーター便依頼書など様々な形式があります）。
+
+以下のJSONオブジェクトを、画像から読み取った情報で埋めて返してください。
+OCR結果と画像を解析し、積込(load)と卸(unload)をJSONのみで返してください。JSON以外は禁止。
+
+{"load":{"date":"","time":"","ampm":"","location":"","company":""},"unload":{"date":"","time":"","ampm":"","location":"","company":""}}
+
+【各フィールドの読み取りルール】
+
+load（積み込み・引取・集荷・積日・積込・持込・積地）:
+- date: 積み込み日をYYYY-MM-DD形式で（例: 2026-05-15）
+  ※「令和8年」は「2026年」として変換すること（令和元年=2019年）
+  ※「5月15日」のように年が書かれていない場合は書類の発行年または文脈から判断
+- time: 具体的な時刻が書かれている場合のみHH:mm形式で（例: 09:00）
+  「16時00分まで」→「16:00」、「11:00〜13:00」→「11:00」（開始時刻）
+- ampm: 「AM」または「PM」とだけ書かれている場合（時刻が不明な場合）にそのまま入力。具体的な時刻がある場合は空文字
+- location: 積み込み先の住所（都道府県から番地まで）
+- company: 積み込み先の会社名・施設名
+
+unload（荷下ろし・納品・卸・荷卸・納先・配達・卸日）:
+- date: 荷下ろし日をYYYY-MM-DD形式で
+- time: 具体的な時刻（HH:mm形式）。「17:00迄」→「17:00」、「AM11:00まで」→「11:00」（この場合ampmは空に）
+- ampm: 「AM」「PM」とだけ書かれている場合のみ。具体的な時刻がある場合は空文字
+- location: 荷下ろし先の住所
+- company: 荷下ろし先の会社名・施設名
+
+【重要な注意点】
+- 不明・記載なしの項目は空文字のままにしてください
+- 「引取日」「積日」「積込日」「持込」はload（積み込み）として扱う
+- 「納品日」「卸日」「荷卸日」「配達日」はunload（荷下ろし）として扱う
+- AMとPMは半角大文字で記入
+- 住所と会社名は別々のフィールドに入れてください`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: currentImageType, data: currentImageBase64 } },
+              { text: prompt }
+            ]
+          }],
+          generationConfig: { temperature: 0, maxOutputTokens: 1024 }
+        })
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+
+    if (!data.candidates || !data.candidates.length) {
+      throw new Error('Geminiから応答が返りませんでした');
+    }
+
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    let parsed = {
+      load:   { date:'', time:'', ampm:'', location:'', company:'' },
+      unload: { date:'', time:'', ampm:'', location:'', company:'' }
+    };
+
+    try {
+      let text = rawText
+        .replace(/```[a-zA-Z]*/g, '').replace(/```/g, '')
+        .replace(/｛/g, '{').replace(/｝/g, '}');
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start === -1 || end <= start) throw new Error('no braces');
+      let jsonStr = text.slice(start, end + 1);
+      jsonStr = jsonStr.replace(/("(?:[^"\\]|\\.)*")/g, (match) => {
+        return match.replace(/\n/g, '').replace(/\r/g, '').replace(/[\x00-\x1F]/g, '');
+      });
+      const raw = JSON.parse(jsonStr);
+      // 旧フォーマット（datetime）との互換性
+      if (raw.load?.datetime) {
+        const m = raw.load.datetime.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?/);
+        if (m) { raw.load.date = m[1]; raw.load.time = m[2]||''; }
+      }
+      if (raw.unload?.datetime) {
+        const m = raw.unload.datetime.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?/);
+        if (m) { raw.unload.date = m[1]; raw.unload.time = m[2]||''; }
+      }
+      parsed = {
+        load: {
+          date: raw.load?.date || '',
+          time: raw.load?.time || '',
+          ampm: raw.load?.ampm || '',
+          location: raw.load?.location || '',
+          company: raw.load?.company || ''
+        },
+        unload: {
+          date: raw.unload?.date || '',
+          time: raw.unload?.time || '',
+          ampm: raw.unload?.ampm || '',
+          location: raw.unload?.location || '',
+          company: raw.unload?.company || ''
+        }
+      };
+    } catch(err) {
+      console.error(err);
+      showToast('JSON解析失敗', 'error');
+    }
+
+    // フォームに値をセット
+    setDateTimeFields('load', parsed.load);
+    setDateTimeFields('unload', parsed.unload);
+
+    // 場所：会社名と住所を結合
+    const loadLoc = [parsed.load?.company, parsed.load?.location].filter(Boolean).join(' ');
+    const unloadLoc = [parsed.unload?.company, parsed.unload?.location].filter(Boolean).join(' ');
+    document.getElementById('f_load_loc').value = loadLoc;
+    document.getElementById('f_unload_loc').value = unloadLoc;
+
+    document.getElementById('resultArea').style.display = 'flex';
+    showToast('📋 読み取り完了！内容を確認してください');
+  } catch(e) {
+    showToast('読み取り失敗: ' + e.message, 'error');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🔍 AIで情報を読み取る';
+}
+
+function setDateTimeFields(prefix, data) {
+  if (!data) return;
+  const dateEl   = document.getElementById(`f_${prefix}_date`);
+  const timeEl   = document.getElementById(`f_${prefix}_time`);
+  const ampmEl   = document.getElementById(`f_${prefix}_ampm`);
+
+  dateEl.value = data.date || '';
+
+  const ampm = (data.ampm || '').toUpperCase();
+  if (ampm === 'AM' || ampm === 'PM') {
+    timeEl.value = '';
+    timeEl.disabled = true;
+    ampmEl.value = ampm;
+  } else {
+    timeEl.disabled = false;
+    ampmEl.value = '';
+    timeEl.value = data.time || '';
+  }
+}
+
+// ===== REGISTER =====
+function getDatetimeString(prefix) {
+  const date  = document.getElementById(`f_${prefix}_date`).value;
+  const time  = document.getElementById(`f_${prefix}_time`).value;
+  const ampm  = document.getElementById(`f_${prefix}_ampm`).value;
+  if (!date) return null;
+  if (ampm) return `${date} ${ampm}`;       // 例: "2026-05-15 AM"
+  if (time) return `${date}T${time}`;        // 例: "2026-05-15T09:00"
+  return date;                               // 日付のみ
+}
+
+function registerEvents() {
+  const loadDt   = getDatetimeString('load');
+  const loadLoc  = document.getElementById('f_load_loc').value;
+  const unloadDt = getDatetimeString('unload');
+  const unloadLoc= document.getElementById('f_unload_loc').value;
+
+  const newEvs = [];
+  if (loadDt)   newEvs.push({ id: crypto.randomUUID(),   type:'load',   datetime:loadDt,   location:loadLoc });
+  if (unloadDt) newEvs.push({ id: crypto.randomUUID(), type:'unload', datetime:unloadDt, location:unloadLoc });
+
+  if (!newEvs.length) { showToast('日付を入力してください', 'error'); return; }
+
+  events.push(...newEvs);
+  saveData();
+  clearResult();
+
+  const refDt = newEvs[0].datetime;
+  const d = new Date(refDt.replace(' AM','').replace(' PM',''));
+  if (!isNaN(d)) { calYear = d.getFullYear(); calMonth = d.getMonth(); }
+  renderCalendar();
+  showToast(`✅ ${newEvs.length}件を登録しました`);
+  switchTab('Cal');
+}
+
+function clearResult() {
+  document.getElementById('resultArea').style.display = 'none';
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('dropPlaceholder').style.display = 'flex';
+  document.getElementById('analyzeBtn').disabled = true;
+  currentImageBase64 = null;
+  // フォームリセット
+  ['load','unload'].forEach(p => {
+    document.getElementById(`f_${p}_date`).value = '';
+    document.getElementById(`f_${p}_time`).value = '';
+    document.getElementById(`f_${p}_time`).disabled = false;
+    document.getElementById(`f_${p}_ampm`).value = '';
+    document.getElementById(`f_${p}_loc`).value = '';
+  });
+  document.getElementById('fileInputGallery').value = '';
+  document.getElementById('fileInputCamera').value = '';
+}
+
+// ===== CALENDAR =====
+function changeMonth(delta) {
+  calMonth += delta;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  document.getElementById('calMonthLabel').textContent = `${calYear}年${calMonth+1}月`;
+  const loadCount = events.filter(e=>e.type==='load').length;
+  const unloadCount = events.filter(e=>e.type==='unload').length;
+  document.getElementById('calStats').innerHTML = `
+    <div class="stat-chip"><div class="stat-dot" style="background:var(--green)"></div>積み込み ${loadCount}件</div>
+    <div class="stat-chip"><div class="stat-dot" style="background:var(--red)"></div>荷下ろし ${unloadCount}件</div>
+  `;
+
+  const first = new Date(calYear, calMonth, 1);
+  const last  = new Date(calYear, calMonth+1, 0);
+  const today = new Date();
+  const grid  = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  for (let i = 0; i < first.getDay(); i++) {
+    grid.appendChild(makeCell(new Date(calYear, calMonth, i - first.getDay() + 1), false, today));
+  }
+  for (let d = 1; d <= last.getDate(); d++) {
+    grid.appendChild(makeCell(new Date(calYear, calMonth, d), true, today));
+  }
+  let trailing = 1;
+  while (grid.children.length % 7 !== 0) {
+    grid.appendChild(makeCell(new Date(calYear, calMonth+1, trailing++), false, today));
+  }
+}
+
+function parseDateFromEvent(ev) {
+  const s = (ev.datetime || '').replace(' AM','').replace(' PM','');
+  const datePart = s.split('T')[0];
+
+  if (!datePart) return new Date('');
+
+  const [y, m, d] = datePart.split('-').map(Number);
+
+  return new Date(y, m - 1, d);
+}
+
+function makeCell(date, current, today) {
+  const cell = document.createElement('div');
+  const dow = date.getDay();
+  const isToday = date.toDateString() === today.toDateString();
+  cell.className = 'day-cell' +
+    (!current ? ' other' : '') +
+    (isToday ? ' today' : '') +
+    (dow===0 ? ' sunday' : dow===6 ? ' saturday' : '');
+
+  const dayEvs = events.filter(e => {
+    const d = parseDateFromEvent(e);
+    return !isNaN(d) && d.toDateString() === date.toDateString();
+  });
+
+  cell.innerHTML = `<div class="dnum">${date.getDate()}</div><div class="day-dots">
+    ${dayEvs.map(e => `<div class="day-dot ${e.type}"></div>`).join('')}
+  </div>`;
+
+  if (dayEvs.length > 0) {
+    cell.addEventListener('click', () => openDayModal(date, dayEvs));
+  }
+  return cell;
+}
+
+// ===== DAY MODAL =====
+function formatEventTime(ev) {
+  const dt = ev.datetime || '';
+  // AM/PM表記
+  if (dt.includes(' AM')) return 'AM';
+  if (dt.includes(' PM')) return 'PM';
+  // HH:mm表記
+  const d = new Date(dt);
+  if (!isNaN(d) && dt.includes('T')) {
+    return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+  }
+  return '時刻未定';
+}
+
+function openDayModal(date, dayEvs) {
+  const label = `${date.getMonth()+1}月${date.getDate()}日`;
+  document.getElementById('modalTitle').textContent = `📅 ${label}`;
+  document.getElementById('modalBody').innerHTML = dayEvs.map(ev => {
+    const time = formatEventTime(ev);
+    const typeLabel = ev.type==='load' ? '🟢 積み込み' : '🔴 荷下ろし';
+    const color = ev.type==='load' ? 'var(--green)' : 'var(--red)';
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+      <div style="font-size:12px;font-weight:700;color:${color}">${typeLabel}</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:18px">🕐</span>
+        <div><div style="font-size:10px;color:var(--text-sub);letter-spacing:1px">時刻</div><div style="font-size:14px">${time}</div></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:18px">📍</span>
+        <div><div style="font-size:10px;color:var(--text-sub);letter-spacing:1px">場所</div><div style="font-size:14px">${escapeHtml(ev.location||'—')}</div></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px">
+        <button onclick="deleteEventById('${ev.id}')" style="padding:6px 14px;background:rgba(248,81,73,0.12);color:var(--red);border:1px solid var(--red);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('modalFooter').style.display = 'none';
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function deleteEventById(id) {
+  events = events.filter(e => e.id !== id);
+  saveData();
+  renderCalendar();
+  closeModal();
+  showToast('削除しました');
+}
+
+// ===== MODAL =====
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('modalFooter').style.display = '';
+  currentEventId = null;
+}
+
+function deleteCurrentEvent() {
+  if (!currentEventId) return;
+  events = events.filter(e => e.id !== currentEventId);
+  saveData();
+  renderCalendar();
+  closeModal();
+  showToast('削除しました');
+}
+
+// ===== TABS =====
+function switchTab(name) {
+  ['Scan','Cal','Settings'].forEach(t => {
+    document.getElementById('tab'+t).classList.toggle('hidden', t!==name);
+    document.getElementById('tabBtn'+t).classList.toggle('active', t===name);
+  });
+  if (name==='Cal') renderCalendar();
+}
+
+// ===== MISC =====
+function updateEventCount() {
+  const el = document.getElementById('eventCount');
+  if (el) el.textContent = events.length;
+}
+
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast hidden'; }, 3500);
+}
+
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .catch(err => console.log('SW登録失敗', err));
+  });
+}
+
+init();
+
+</script>
+</body>
+</html>
